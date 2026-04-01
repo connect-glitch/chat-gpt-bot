@@ -34,10 +34,15 @@ class OpenAIService {
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       return data['choices'][0]['message']['content'] as String;
+    } else if (response.statusCode == 429) {
+      throw Exception(
+        'Rate limit reached. Please wait a few seconds and try again.\n'
+        'Your account has a per-minute request limit — slow down slightly between messages.',
+      );
     } else {
       final error = jsonDecode(response.body);
       final message = error['error']?['message'] ?? 'Unknown error';
-      throw Exception('OpenAI API error ${response.statusCode}: $message');
+      throw Exception('OpenAI error ${response.statusCode}: $message');
     }
   }
 
@@ -81,16 +86,41 @@ class OpenAIService {
     }
   }
 
-  /// Validate an API key by making a lightweight models list call.
-  Future<bool> validateApiKey(String apiKey) async {
+  /// Validate an API key by sending a real (minimal) chat completion.
+  /// Returns null on success, or a human-readable error string on failure.
+  /// This catches billing errors that the /models endpoint does NOT surface.
+  Future<String?> validateApiKey(String apiKey) async {
     try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/models'),
-        headers: {'Authorization': 'Bearer $apiKey'},
+      final response = await http.post(
+        Uri.parse('$_baseUrl/chat/completions'),
+        headers: {
+          'Authorization': 'Bearer $apiKey',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'model': 'gpt-4o-mini',
+          'messages': [
+            {'role': 'user', 'content': 'hi'},
+          ],
+          'max_tokens': 1,
+        }),
       );
-      return response.statusCode == 200;
-    } catch (_) {
-      return false;
+      if (response.statusCode == 200) return null; // success
+      // 429 = rate-limited: the key is real and billing is active,
+      // the account just hit its per-minute limit. Treat as valid.
+      if (response.statusCode == 429) return null;
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final msg = data['error']?['message'] as String? ?? 'Unknown error';
+      final code = data['error']?['code'] as String? ?? '';
+      if (code == 'insufficient_quota' ||
+          msg.toLowerCase().contains('billing') ||
+          msg.toLowerCase().contains('quota') ||
+          msg.toLowerCase().contains('exceeded')) {
+        return 'Billing error: $msg\n\nPlease check your OpenAI account at platform.openai.com/account/billing';
+      }
+      return 'API error: $msg';
+    } catch (e) {
+      return 'Network error: $e';
     }
   }
 }

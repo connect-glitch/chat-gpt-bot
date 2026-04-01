@@ -50,6 +50,9 @@ dependencies:
   # Audio recording (Whisper)
   record: ^6.2.0
 
+  # Text-to-speech (voice output)
+  flutter_tts: ^4.2.0
+
   # Permissions
   permission_handler: ^11.3.1
 

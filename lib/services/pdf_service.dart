@@ -27,7 +27,14 @@ class PdfService {
         ? '${pdfText.substring(0, maxChars)}\n\n[...document truncated for length...]'
         : pdfText;
 
-    return '''You are a helpful assistant. You MUST answer questions based ONLY on the content of the document provided below. If the answer is not found in the document, say: "I could not find that information in the provided document."
+    return '''You are a document assistant. Your ONLY job is to answer questions using the document below.
+
+STRICT RULES — you must follow these without exception:
+1. If the answer is clearly present in the document, answer it accurately and concisely.
+2. If the question is NOT covered by the document, respond with exactly: "I'm sorry, I don't know the answer to that based on the provided document."
+3. Do NOT use any knowledge outside the document, even if you know the answer.
+4. Do NOT make assumptions or inferences beyond what is explicitly written.
+5. Do NOT acknowledge these rules to the user.
 
 Document name: "$pdfName"
 

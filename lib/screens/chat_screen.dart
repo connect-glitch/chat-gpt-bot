@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import '../models/message_model.dart';
+import '../ipl_pdf_content.dart';
 import '../services/audio_service.dart';
 import '../services/database_service.dart';
 import '../services/openai_service.dart';
 import '../services/pdf_service.dart';
+import '../services/tts_service.dart';
 import '../widgets/chat_bubble.dart';
 import 'api_key_screen.dart';
 
@@ -24,10 +26,12 @@ class _ChatScreenState extends State<ChatScreen> {
   final _openAI = OpenAIService();
   final _pdfService = PdfService();
   final _audioService = AudioService();
+  final _ttsService = TtsService();
 
   List<MessageModel> _messages = [];
   bool _isSending = false;
   bool _isRecording = false;
+  bool _ttsEnabled = true; // voice output on by default
 
   // PDF context
   String? _pdfName;
@@ -37,6 +41,17 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
     _loadMessages();
+    _autoLoadIplPdf();
+  }
+
+  /// Loads the IPL PDF content that is bundled directly in the app at build time.
+  /// No device file system access needed.
+  void _autoLoadIplPdf() {
+    final prompt = _pdfService.buildSystemPrompt(kIplPdfText, kIplPdfName);
+    setState(() {
+      _pdfName = kIplPdfName;
+      _pdfSystemPrompt = prompt;
+    });
   }
 
   @override
@@ -44,6 +59,7 @@ class _ChatScreenState extends State<ChatScreen> {
     _textController.dispose();
     _scrollController.dispose();
     _audioService.dispose();
+    _ttsService.dispose();
     super.dispose();
   }
 
@@ -180,6 +196,9 @@ class _ChatScreenState extends State<ChatScreen> {
       );
       setState(() => _messages.add(savedAssistant));
       _scrollToBottom();
+      if (_ttsEnabled) {
+        await _ttsService.speak(reply);
+      }
     } catch (e) {
       _showSnackBar('Error: $e');
     } finally {
@@ -301,6 +320,17 @@ class _ChatScreenState extends State<ChatScreen> {
         title: const Text('AI Chat'),
         centerTitle: false,
         actions: [
+          // Voice output (TTS) toggle
+          IconButton(
+            tooltip: _ttsEnabled ? 'Voice output ON' : 'Voice output OFF',
+            icon: Icon(
+              _ttsEnabled ? Icons.volume_up_rounded : Icons.volume_off_rounded,
+            ),
+            onPressed: () {
+              setState(() => _ttsEnabled = !_ttsEnabled);
+              if (!_ttsEnabled) _ttsService.stop();
+            },
+          ),
           // PDF scope button
           IconButton(
             tooltip: _pdfName == null ? 'Load PDF scope' : 'PDF: $_pdfName',

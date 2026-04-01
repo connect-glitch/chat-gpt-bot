@@ -21,7 +21,7 @@ android {
 
     defaultConfig {
         applicationId = "com.pratik.chat_bot"
-        minSdk = 21   // record v6 + permission_handler require API 21+
+        minSdk = flutter.minSdkVersion   // record v6 + permission_handler require API 21+
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

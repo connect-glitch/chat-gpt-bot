@@ -32,9 +32,9 @@ class _ApiKeyScreenState extends State<ApiKeyScreen> {
     final key = _keyController.text.trim();
 
     try {
-      final valid = await _openAI.validateApiKey(key);
-      if (!valid) {
-        _showError('Invalid API key. Please check and try again.');
+      final error = await _openAI.validateApiKey(key);
+      if (error != null) {
+        _showError(error);
         return;
       }
       await _db.saveSetting('openai_api_key', key);
